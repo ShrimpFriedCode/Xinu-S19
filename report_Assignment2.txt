@@ -1,0 +1,19 @@
+Questions:
+
+Q: Does your program output any garbage? If yes, why?
+A: Initially, yes. The consumer and producer funtions were not
+synchronized, so 2 programs were trying to access the same critical space at once. This was fixed with a semaphore implementation, which now makes the consumer and producer functions synchronized and thus eliminates the garbage output.
+
+Q: Are all the produced values getting consumed? Check your program for a small count like 20.
+A: With the semaphore implementation, all of the produced values are getting consumed, which has been observed when running my prodcons over small count values. 
+
+Functions: 
+
+prodcons(int nargs, char *args[]):
+  This function initializesthe global vars n, consumer, and producer. It sets the value of count, which can be defaulted to 2000 or defined by a cmd argument. This function verifies input to the cmd in this case. Lastly, this function initializes the semaphores, and starts the consumer and producer functions. 
+
+producer(int count):
+  This function interates 'count' many times, checking to see if n can be incremented and icrementing n if so. when n is incremented (i.e when n is not being read by consumer), this function will print "produced: n", with n being it's respective value at the time. when n is done being incremented, producer signals that consumer may read it. 
+
+consumer(int count):
+  This function iterates 'count' many times, checking to see if n can be read and printing "consumed: n", with n being it's respective value at the time, if so. when n is done being read, consumer signals that producer may increment it.
