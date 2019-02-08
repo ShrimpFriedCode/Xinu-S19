@@ -13,7 +13,10 @@ if ((nargs == 1) || (strncmp(args[1], "list", 5) == 0))
     args++;
     nargs--;
 
-    if(strncmp(args[0], "hello", 13) == 0) {
-      printf("HELLO and welcome to the test function!\n");
+    if(strncmp(args[0], "hello", 5) == 0) {
+      xsh_hello(nargs, args);
+    }
+    else if(strncmp(args[0], "prodcons", 8) == 0) {
+      xsh_prodcons(nargs, args);
     }
 }
