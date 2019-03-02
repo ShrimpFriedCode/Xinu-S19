@@ -1,0 +1,6 @@
+Ethan Anderson
+
+Q1) for mixed output when debugging, you can try to put wait blocks before output statements that are causing interferance. 
+
+Q2) you cna use mutexs for organized access to a global queue, similar to my code's global queue. While I accomplished this using sempahores, I believe my data is at risk of being out of order, which a mutex could solve. 
+with all streams trying to access the same critical space, simulating incoming sequential data, a mutex ensures the incoming data is handled in the incoming order and that the critical space is protected.

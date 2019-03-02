@@ -1,0 +1,344 @@
+#include <xinu.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stream_proc.h>
+#include <input1.h>
+#include "../apps/tscdf.h"
+
+sid32 sems[501];
+
+int time_window, output_time;
+
+typedef struct{
+
+	int sid;
+	int ts;
+	int v;
+
+}pair;
+
+typedef struct{
+	
+	int depth;
+	int members;
+	pair *data;
+
+} Queue;
+
+Queue queues[500];
+/*
+void prod(int n_input, int num_streams){
+		
+	int i;
+	int st, ts, v;
+	char* a;
+
+	for(i = 0; i<n_input; i++){
+
+		pair tmp;
+	
+        	a = (char *)stream_input[i];
+        	st = atoi(a);
+		tmp.sid = st;
+        	while (*a++ != '\t');
+        	ts = atoi(a);
+		tmp.ts = ts;
+        	while (*a++ != '\t');
+        	v = atoi(a);
+		tmp.v = v;
+
+		if(st < num_streams){
+			wait(sems[0]);
+			queuePush(queues[id], tmp);
+			signal(sems[id]);
+		}
+
+
+	}
+
+}
+
+void cons(int id){
+
+	while(1){
+
+		wait(sems[id]);
+		printf("%d\n", queuePop(queues[id]));
+		signal(sems[0]);
+
+	}
+
+}
+*/
+void queueCreate(Queue *queue, int workD){
+
+	queue->depth = workD;
+	queue->members = 0;
+	queue->data = getmem(sizeof(pair) * queue->depth);
+
+}
+
+void queuePush(Queue *queue, pair stv){ //assumes queue not full
+
+	queue->data[queue->members++] = stv;
+
+}
+
+pair queueGet(Queue *queue, int index){ //assumes index is in range
+
+	return queue->data[index];
+
+}
+
+bool queueFull(Queue *queue){
+
+	return (queue->members == queue->depth);
+
+}
+
+pair queuePop(Queue *queue){
+
+	pair ret = queueGet(queue, 0);
+	
+	int i;
+	for(i = 0; i < queue->members-1; i++){
+
+		queue->data[i] = queue->data[i+1];
+
+	}
+
+	queue->members--;
+
+	return ret;
+
+}
+
+void queueFree(Queue *queue){
+
+	freemem(queue->data, (sizeof(pair) * queue->depth));
+
+}
+
+void prod(int n_input, int num_streams){
+
+        int i;
+        int st, ts, v;
+        char* a;
+
+        for(i = 0; i<n_input; i++){
+
+                pair tmp;
+
+                a = (char *)stream_input[i];
+                st = atoi(a);
+                tmp.sid = st;
+                while (*a++ != '\t');
+                ts = atoi(a);
+                tmp.ts = ts;
+                while (*a++ != '\t');
+                v = atoi(a);
+                tmp.v = v;
+
+                if(st < num_streams){
+                        wait(sems[501]);
+
+			while(queueFull(&queues[st]));
+                        queuePush(&queues[st], tmp);
+                        signal(sems[st]);
+                }
+
+
+        }
+
+	for(i = 0; i < num_streams; i++){
+
+		pair tmp2;
+		tmp2.v = -99;
+
+		wait(sems[501]);
+		queuePush(&queues[i], tmp2);
+		signal(sems[i]);
+
+	//	printf("Thread %d confirmed closed\n", i);
+	}
+	//printf("returning");
+	return;
+
+}
+
+void cons(int id){
+
+	struct tscdf *tc = tscdf_init(time_window);
+	int tOut = 0;
+
+	int i;
+
+	//printf("hello");
+
+        while(1){
+	
+                wait(sems[id]);
+		
+		pair p = queuePop(&queues[id]);		
+		
+	//	signal(sems[0]);
+		
+		if(p.v == -99){
+			signal(sems[501]);
+			//queueFree(&queues[id]);
+			//
+			//printf("Thread %d closing\n", id);
+			return;
+		}
+		else{
+
+                	//printf("Consume with ID of: %d has value of %d\n", id, p.v);
+                	
+			tscdf_update(tc, p.ts, p.v);
+			tOut++;	
+
+                	signal(sems[501]);
+
+		}
+
+		if(tOut==output_time){
+
+			int32 * qarray = tscdf_quartiles(tc);
+
+			if(qarray == NULL) {
+    				kprintf("tscdf_quartiles returned NULL\n");
+			}
+
+			for(i=0; i < 5; i++) {
+   				kprintf("%d ", qarray[i]);
+			}
+			kprintf("\n");
+      
+			freemem((char *)qarray, (6*sizeof(int32)));
+
+		}
+
+        }
+
+	return;
+
+}
+
+shellcmd xsh_stream_proc(int nargs, char *args[]) {
+
+	int num_streams = 1;
+	int work_queue = 10;
+	time_window = 25;
+	output_time = 10;
+
+	char usage[] = "Usage: -s num_streams -w work_queue -t time_window -o output_time\n";
+
+	if(!(nargs%2)){
+		printf("%s, ARG ERR\n", usage);
+		return(-1);
+	}
+	else{
+		int i = nargs-1;
+		while(i > 0) {
+			char* ch = args[i-1];
+			char c = *(++ch);
+			
+			switch(c) {
+		
+			case 's':
+				num_streams = atoi(args[i]);
+				break;
+			case 'w':
+				work_queue = atoi(args[i]);
+				break;
+			case 't':
+				time_window = atoi(args[i]);
+				break;
+			case 'o':
+				output_time = atoi(args[i]);
+				break;
+			default:
+				printf("%s, DEFAULT SWITCH\n", usage);
+				return(-1);
+			}
+		i -= 2;
+		}
+	}
+
+	int n_input = (sizeof (stream_input) / sizeof (const char *));
+
+	int q;
+	for(q = 0; q < num_streams; q++){
+		Queue tmp;
+		queueCreate(&tmp, work_queue);
+		queues[q] = tmp;
+	}
+
+        int j = 0;
+        for(j = 0; j < num_streams; j++){
+                sems[j] = semcreate(0);
+        }
+	sems[501] = semcreate(0);
+        signal(sems[501]);
+
+	resume(create(prod, 1024, 20, "prod", 2, n_input, num_streams));
+
+	int s;
+	for(s = 0; s < num_streams; s++){
+		resume(create(cons, 1024, 20, "consumer", 1, s));
+	}
+
+	//signal(sems[0]);
+
+	//resume(create(prod, 1024, 20, "prod", 2, n_input, num_streams));
+
+	//printf("done setup");
+
+/*
+	Queue testQ;
+	queueCreate(&testQ, 3);
+
+	pair one;
+	one.sid = 1;
+	one.ts = 2;
+	one.v = 3;
+
+	pair two;
+	two.sid = 2;
+	two.ts = 3;
+	two.v = 40;
+
+	queuePush(&queues[0], one);
+	queuePush(&queues[0], two);
+	
+	queuePush(&queues[1], one);
+	printf("%d\n", queuePop(&queues[0]).v);
+	printf("%d\n", queuePop(&queues[1]).v);
+	printf("%d\n", queuePop(&queues[0]).v);
+*/
+	//meat of program
+	//for i in n_input...
+	//parse data
+	//based on sid...
+	//create pair and assign it to queue
+	//if can't insert...wait to insert... push/pop implementation needed.
+	//keep going...
+/*
+	int st, ts, v;
+
+	char* a;
+
+	a = (char *)stream_input[1];
+  	st = atoi(a);
+	while (*a++ != '\t');
+  	ts = atoi(a);
+  	while (*a++ != '\t');
+  	v = atoi(a);
+
+	printf("%d\d", v);
+*/
+
+	//printf("main return\n");
+	return 0;
+}

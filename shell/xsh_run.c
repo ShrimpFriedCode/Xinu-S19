@@ -19,4 +19,6 @@ if ((nargs == 1) || (strncmp(args[1], "list", 5) == 0))
     else if(strncmp(args[0], "prodcons", 8) == 0) {
       xsh_prodcons(nargs, args);
     }
+    
+   return OK;
 }
