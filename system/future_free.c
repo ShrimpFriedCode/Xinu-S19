@@ -16,7 +16,8 @@ syscall future_free(future* f){
 	if(store == SYSERR || whole == SYSERR){ //ensure no errors were encountered in freeing
 			return SYSERR;
 	}
-	
+
+	restore(mask);	
 	return OK;
 	
 }
