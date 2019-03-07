@@ -89,3 +89,5 @@ extern shellcmd xsh_prodcons	(int32, char *[]);
 extern shellcmd xsh_run		(int32, char *[]);
 
 extern shellcmd xsh_stream_proc	(int32, char *[]);
+
+extern shellcmd xsh_future_test	(int32, char *[]);
