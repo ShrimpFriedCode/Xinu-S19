@@ -4,29 +4,43 @@
 #include <stdlib.h>
 #include <future.h>
 
-void push(queue * head, pid32 pid) {
-	queue * current = head;
-	while (current->next != NULL) {
-		current = current->next;
-	}
+node* newNode(pid32 p) 
+{ 
+    node *temp = (node*)getmem(sizeof(node)); 
+    temp->pid = p; 
+    temp->next = NULL; 
+    return temp;  
+} 
 
-
-	current->next = malloc(sizeof(queue));
-	current->next->pid = pid;
-	current->next->getStatus = 1;
-	current->next->next = NULL;
+void push(queue * q, pid32 p) {
+	// Create a new LL node 
+    struct node *temp = newNode(p); 
+  
+    // If queue is empty, then new node is front and rear both 
+    if (q->last == NULL) 
+    { 
+       q->first = q->last = temp; 
+       return; 
+    } 
+  
+    // Add the new node at the end of queue and change rear 
+    q->last->next = temp; 
+    q->last = temp; 
 }
 
-pid32 pop(queue ** head) {
-	pid32 retval;
-	queue * next_node = NULL;
-
-	next_node = (*head)->next;
-	retval = (*head)->pid;
-	freemem(*head, (sizeof(queue)));
-	*head = next_node;
-
-	return retval;
+pid32 pop(queue * q) {
+// If queue is empty, return NULL. 
+    if (q->first == NULL) 
+       return NULL; 
+  
+    // Store previous front and move front one node ahead 
+	pid32 ret = q->first->pid; 
+    q->first = q->first->next; 
+  
+    // If front becomes NULL, then change rear also as NULL 
+    if (q->first == NULL) 
+       q->last = NULL; 
+    return ret; 
 }
 
 syscall future_get(future* f, char* value){
@@ -41,21 +55,23 @@ syscall future_get(future* f, char* value){
 			f->state = FUTURE_WAITING;//change state
 			prptr = &proctab[getpid()];//get process from process table
 			prptr->prstate = PR_WAIT; //change process to state wait
-			f->get_queue->pid = getpid();//head is empty, so add	
+			push(f->get_queue, getpid());
 			resched();//reschedule process
+			memcpy(value, f->value, f->size);//get value
 			restore(mask);
 			return OK;
 		}
 		else if(f->state == FUTURE_WAITING){
 			prptr = &proctab[getpid()];//get process from process table
 			prptr->prstate = PR_WAIT; //change process to state wait
-			push(f->get_queue, getpid());//push to get queue
+			push(f->get_queue, getpid());
 			resched();//reschedule process
+			memcpy(value, f->value, f->size);//get value
 			restore(mask);
 			return OK;
 		}
 		else if(f->state == FUTURE_FULL){
-			memcpy(value, &f->value, sizeof(&f->value));//get value
+			memcpy(value, f->value, f->size);//get value
 			restore(mask);
 			return OK;
 
@@ -83,7 +99,7 @@ syscall future_get(future* f, char* value){
 			return SYSERR; 
 		}
 		else if(f->state == FUTURE_FULL){//if full, get value
-			memcpy(value, &f->value, sizeof(&f->value));//get value
+			memcpy(value, f->value, f->size);//get value
 			f->pid = getpid();//store pid
 			restore(mask);
 			return OK;
@@ -97,33 +113,20 @@ syscall future_get(future* f, char* value){
 		return SYSERR;
 	}
 	else if(f->flags == FUTURE_QUEUE){
-		if(f->set_queue->setStatus == 1){
-			memcpy(value, &f->value, sizeof(&f->value));//get value
-			ready(pop(f->set_queue));
-			f->get_queue->getStatus == 0;
+		if(f->set_queue->last == NULL){
+			prptr = &proctab[getpid()];//get process from process table
+			prptr->prstate = PR_WAIT; //change process to state wait
+			push(f->get_queue, getpid());
+			resched();
+			memcpy(value, f->value, f->size);//get value
 			restore(mask);
 			return OK;
 		}
-		else if(f->set_queue == NULL || f->set_queue->setStatus == 0 ){
-			if(f->get_queue == NULL){
-				f->get_queue = getmem(sizeof(queue));
-				f->get_queue->next = NULL;
-				f->get_queue->getStatus = 1;
-				f->get_queue->pid = getpid();
-			}
-			else if(f->get_queue->getStatus == 0){
-				f->get_queue->pid = getpid();
-				f->get_queue->getStatus == 1;
-			}
-			else{
-				push(f->get_queue, getpid());
-			}
-			prptr = &proctab[getpid()];//get process from process table
-			prptr->prstate = PR_WAIT; //change process to state wait
-			resched();
+		else{
+			ready(pop(f->set_queue));
+			memcpy(value, f->value, f->size);//get value
 			restore(mask);
 			return OK;
-			
 		}
 	}
 	else{

@@ -12,12 +12,16 @@
 #define FUTURE_SHARED     2
 #define FUTURE_QUEUE	  3	
 
+typedef struct node
+{
+  pid32 pid;
+  struct node * next;
+} node;
+
 typedef struct queue
 {
-  int getStatus;
-  int setStatus;
-  pid32 pid;
-  struct queue * next;
+  struct node *first, *last;
+  int size;
 } queue;
 
 typedef struct futent
@@ -27,9 +31,11 @@ typedef struct futent
   uint32 size;
   char *value; /* alloc must memget size (in chars) space */
   pid32 pid; /* for single waiter case */
-  struct queue * get_queue; //queue
-  struct queue * set_queue;
+  queue* get_queue; //queue
+  queue* set_queue;
 } future;
+
+
 
 /* Interface for system call */
 future* future_alloc(int future_flags, uint size);

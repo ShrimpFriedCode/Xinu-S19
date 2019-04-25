@@ -10,21 +10,8 @@ syscall future_free(future* f){
 
 	syscall store, whole; //initialize returns
 	
-	queue * curr=f->get_queue;
-	queue * temp;
-	while(curr!=NULL){
-		temp=curr->next;
-		freemem(curr, (sizeof(queue)))
-		curr=temp;
-	}
-	
-	queue * curr2=f->set_queue;
-	queue * temp2;
-	while(curr2!=NULL){
-		temp2=curr2->next;
-		freemem(curr2, (sizeof(queue)))
-		curr2=temp2;
-	}
+	freemem(f->set_queue, (sizeof(queue)));
+	freemem(f->get_queue, (sizeof(queue)));
 	
 	store = freemem(f->value, (sizeof(char) * f->size)); //free value storage
 	whole = freemem((char *)f, (sizeof(future))); //free struct 
