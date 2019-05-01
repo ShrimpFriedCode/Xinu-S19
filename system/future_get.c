@@ -99,6 +99,7 @@ syscall future_get(future* f, char* value){
 			return SYSERR; 
 		}
 		else if(f->state == FUTURE_FULL){//if full, get value
+			f->state == FUTURE_EMPTY;
 			memcpy(value, f->value, f->size);//get value
 			f->pid = getpid();//store pid
 			restore(mask);
