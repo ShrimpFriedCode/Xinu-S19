@@ -85,4 +85,6 @@ struct platform platform;
 
 #endif
 
+#define FS 1
+
 #endif

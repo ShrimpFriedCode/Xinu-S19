@@ -1,0 +1,26 @@
+Report for Assignment 6
+
+1. Implementations:
+
+    fs_open: fs_open is implemented by first using an itterator in a for loop, searching the root.dir for an entry with meta data matching the filename argument.
+    If one is found, a file descriptor is creator on the the next open fd.
+    That state is change to open on the fd, ptr set to the beginning of the file, and flags set to the flag args.
+    The file is opened on dev0 using the inode of existing entry. If no file exists with this title, it is passed to create.
+    
+    fs_close: fs_close is simple in that is simple changes the file descriptor's state.
+    
+    fs_create: fs_create first finds an available block for the inode. 
+    It then records the meta data of file name, and the indode number to the root.dir and adjusts the number of entries.
+    It will then attempt to access an available file descriptor. This fd will set the attributes of the new file, wrtie them, and return an fd for the new file. 
+    
+    fs_seek: seek is simple and very similar to close, as it only edits one element of the fd, this time adjusting a pointer offest with the given args.
+
+    fs_read: Read will first obtain the bounds of the data block being worked with, and attempt to ensure that there will be no out of bounds access issues.
+    It will then add the the output buffer bytes read in decrementing steps from the file, until there are no more bytes left to read.
+    
+    fs_write: Write works much the same way as read. It will first ensure that there is enough data in the file to be properly written to, and then will obtain the bounds of the block.
+    It will locate an open data block to be written to, write the data via buffer, and decrement the byets to be written until completion.
+
+    Lessons Learned:
+    I learned a lot about the actua limplementations of indodes and data blocks compared to their conceptual introduction in the book.
+    Seeing how meta data is stored, how checks are processed and the overall gear and cog interation between the different elements of the program helped me gain a solid understandings of the basics in regards to filesystems. 
